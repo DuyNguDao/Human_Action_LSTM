@@ -1,0 +1,5 @@
+yolov7_pose/weights/yolov7-w6-pose.pt
+runs/exp4
+runs/exp5
+recog_recording.avi
+__pycache__/
