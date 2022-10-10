@@ -66,13 +66,10 @@ class Y7Detect:
         with torch.no_grad():
             image_rgb_shape = image_rgb.shape
             img = self.preprocess_image(image_rgb)
-            pred1 = self.model(img)[0]
+            pred = self.model(img, augment=False)[0]
 
             # apply non_max_suppression
-            pred = non_max_suppression(pred1, self.conf_threshold, self.iou_threshold, nc=self.model.yaml['nc'],
-                                       nkpt=self.model.yaml['nkpt'], kpt_label=True)
-            del pred1
-            torch.cuda.empty_cache()
+            pred = non_max_suppression(pred, self.conf_threshold, self.iou_threshold, kpt_label=True)
             bboxes = []
             labels = []
             scores = []
@@ -85,8 +82,7 @@ class Y7Detect:
                     # Rescale boxes from img_size to im0 size
                     det[:, :4] = scale_coords(img.shape[2:], det[:, :4], image_rgb_shape, kpt_label=False).round()
                     det[:, 6:] = scale_coords(img.shape[2:], det[:, 6:], image_rgb_shape, kpt_label=True, step=3).round()
-
-                for det_idx, (*xyxy, conf, cls) in enumerate(reversed(det[:, :6])):
+                for det_idx, (*xyxy, conf, cls) in enumerate(det[:, :6]):
                     x1 = xyxy[0].cpu().data.numpy()
                     y1 = xyxy[1].cpu().data.numpy()
                     x2 = xyxy[2].cpu().data.numpy()
@@ -111,7 +107,6 @@ class Y7Detect:
                         point.append([int(x_coord), int(y_coord)])
                         score_pt.append(conf)
                     kpts.append(point)
-                    scores_pt.append(score_pt)
                     # ----------- get line -------------
                     skeleton = [[16, 14], [14, 12], [17, 15], [15, 13], [12, 13], [6, 12],
                                 [7, 13], [6, 7], [6, 8], [7, 9], [8, 10], [9, 11], [2, 3],
@@ -121,26 +116,8 @@ class Y7Detect:
                         pos1 = (int(kpt[(sk[0] - 1) * steps]), int(kpt[(sk[0] - 1) * steps + 1]))
                         pos2 = (int(kpt[(sk[1] - 1) * steps]), int(kpt[(sk[1] - 1) * steps + 1]))
                         line_pt.append([pos1, pos2])
+                    scores_pt.append(score_pt)
                     line.append(line_pt)
-            # get bboxes of keypoints
-            if len(kpts) != 0:
-                kp = np.array(kpts)
-                xmin = np.min(kp[:, :, 0], axis=1)
-                ymin = np.min(kp[:, :, 1], axis=1)
-                xmax = np.max(kp[:, :, 0], axis=1)
-                ymax = np.max(kp[:, :, 1], axis=1)
-                bboxes = np.concatenate([[xmin], [ymin], [xmax], [ymax]]).T
-                thresh = 20
-                h, w, _ = image_rgb_shape
-                bboxes[:, :2] -= thresh
-                bboxes[:, 1] -= thresh
-                bboxes[:, 2:] += thresh
-                bboxes[:, 3] += thresh
-                # compare
-                result = np.maximum(bboxes[:, :2], 0)
-                result_w = np.minimum(bboxes[:, 2:3], w)
-                result_h = np.minimum(bboxes[:, 3:4], h)
-                bboxes = np.concatenate([result, result_w, result_h], axis=1)
             return bboxes, labels, scores, lables_id, kpts, scores_pt, line
 
 

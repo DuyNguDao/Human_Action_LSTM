@@ -13,7 +13,7 @@ import argparse
 from classifcation_lstm.utils.load_model import Model
 
 torch.cuda.empty_cache()
-torch.cuda.reset_max_memory_cached()
+torch.cuda.reset_peak_memory_stats()
 print(torch.cuda.is_available())
 
 
@@ -29,7 +29,7 @@ def detect_video(url_video=None, path_model=None, flag_save=False, fps=None, nam
     # *************************** LOAD MODEL LSTM ************************************************
     action_model = Model('runs/exp4/best.pt')
     # **************************** INIT TRACKING *************************************************
-    tracker = StrongSORT(device=device)
+    tracker = StrongSORT(device=device, max_age=100, n_init=5, max_iou_distance=0.45)
     # ********************************** READ VIDEO **********************************************
     if url_video == '':
         cap = cv2.VideoCapture(0)
@@ -53,12 +53,14 @@ def detect_video(url_video=None, path_model=None, flag_save=False, fps=None, nam
 
     # ******************************** REAL TIME ********************************************
     memory = {}
+    count = 0
     while True:
         start = time.time()
         ret, frame = cap.read()
         if not ret:
             break
         h, w, _ = frame.shape
+        count += 1
         if h > h_norm and w > w_norm:
             frame = cv2.resize(frame, (w_norm, h_norm), interpolation=cv2.INTER_AREA)
             h, w, _ = frame.shape
@@ -67,8 +69,9 @@ def detect_video(url_video=None, path_model=None, flag_save=False, fps=None, nam
         # h, w, _ = frame.shape
         # ************************ DETECT YOLOv5 ***************************************
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        bbox, label, score, label_id, kpts, scores_pt, line_pt = y7_model.predict(image)
-        bbox, score, kpts = np.array(bbox), np.array(score), np.array(kpts)
+        if count % 2 != 0:
+            bbox, label, score, label_id, kpts, scores_pt, line_pt = y7_model.predict(image)
+            bbox, score, kpts = np.array(bbox), np.array(score), np.array(kpts)
         if len(bbox) != 0:
             data = tracker.update(bbox, score, kpts, line_pt, frame)
             for outputs in data:
@@ -85,18 +88,20 @@ def detect_video(url_video=None, path_model=None, flag_save=False, fps=None, nam
                     icolor = class_name.index('person')
                     draw_boxes(frame, box, color=colors[icolor])
                     draw_kpts(frame, [kpt], [line_kpt])
-                    color = (255, 0, 0)
+                    color = (0, 255, 0)
                     if len(list_kpt) == 30:
                         action, score = action_model.predict([list_kpt], w, h, batch_size=5)
                     try:
                         if action[0] == "Fall Down":
                             color = (0, 0, 255)
-                        cv2.putText(frame, '{}: {}% - {}'.format(action[0], round(score[0]), track_id), (box[0], box[1]+ 20),
-                                                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
+                        cv2.putText(frame, '{}: {}% - {}'.format(action[0], round(score[0]), track_id),
+                                    (max(box[0]-20, 0), box[1] + 20),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, color, 2, cv2.LINE_AA)
                         action = ["Pending..."]
                     except:
-                        cv2.putText(frame, '{}: {}% - {}'.format("Pending...", round(0), track_id), (box[0], box[1] + 20),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
+                        cv2.putText(frame, '{}: {}% - {}'.format("Pending...", round(0), track_id),
+                                    (max(box[0]-20, 0), box[1] + 20),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, color, 2, cv2.LINE_AA)
 
         # ******************************************** SHOW *******************************************
         frame = cv2.resize(frame, (w, h), interpolation=cv2.INTER_AREA)
@@ -118,9 +123,9 @@ def detect_video(url_video=None, path_model=None, flag_save=False, fps=None, nam
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Detect Face On Video')
     parser.add_argument("-fn", "--file_name", help="video file name or rtsp", default='', type=str)
-    parser.add_argument("-op", "--option", help="if save video then choice option = 1", default=False, type=bool)
+    parser.add_argument("-op", "--option", help="if save video then choice option = 1", default=True, type=bool)
     parser.add_argument("-o", "--output", help="path to output video file", default='recog_recording.avi', type=str)
-    parser.add_argument("-f", "--fps", default=20, help="FPS of output video", type=int)
+    parser.add_argument("-f", "--fps", default=30, help="FPS of output video", type=int)
     args = parser.parse_args()
 
     # MODEL YOLOV5
