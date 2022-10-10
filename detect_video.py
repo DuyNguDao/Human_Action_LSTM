@@ -5,13 +5,15 @@ import numpy as np
 import math
 from numpy import random
 from TRACK_SORT.Sort import SORT
+from strong_sort.strong_sort import StrongSORT
 from pathlib import Path
 from collections import deque
 import torch
 import argparse
-from classifcation_cnn_lstm.utils.load_model import Model
+from classifcation_lstm.utils.load_model import Model
 
 torch.cuda.empty_cache()
+torch.cuda.reset_max_memory_cached()
 print(torch.cuda.is_available())
 
 
@@ -19,15 +21,15 @@ def detect_video(url_video=None, path_model=None, flag_save=False, fps=None, nam
 
     # ******************************** LOAD MODEL *************************************************
     # load model detect yolov5
-    # device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     y7_model = Y7Detect(weights=path_model)
     class_name = y7_model.class_names
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in class_name]
 
     # *************************** LOAD MODEL LSTM ************************************************
-    action_model = Model('runs/exp3/best.pt')
+    action_model = Model('runs/exp4/best.pt')
     # **************************** INIT TRACKING *************************************************
-    tracker = SORT()
+    tracker = StrongSORT(device=device)
     # ********************************** READ VIDEO **********************************************
     if url_video == '':
         cap = cv2.VideoCapture(0)
@@ -61,8 +63,8 @@ def detect_video(url_video=None, path_model=None, flag_save=False, fps=None, nam
             frame = cv2.resize(frame, (w_norm, h_norm), interpolation=cv2.INTER_AREA)
             h, w, _ = frame.shape
         # frame[0:h-400, w-300:w] = np.zeros((h-400, 300, 3), dtype='uint8')
-        frame = cv2.resize(frame, (640, 640), interpolation=cv2.INTER_AREA)
-        h, w, _ = frame.shape
+        # frame = cv2.resize(frame, (640, 640), interpolation=cv2.INTER_AREA)
+        # h, w, _ = frame.shape
         # ************************ DETECT YOLOv5 ***************************************
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         bbox, label, score, label_id, kpts, scores_pt, line_pt = y7_model.predict(image)
@@ -116,7 +118,7 @@ def detect_video(url_video=None, path_model=None, flag_save=False, fps=None, nam
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Detect Face On Video')
     parser.add_argument("-fn", "--file_name", help="video file name or rtsp", default='', type=str)
-    parser.add_argument("-op", "--option", help="if save video then choice option = 1", default=True, type=bool)
+    parser.add_argument("-op", "--option", help="if save video then choice option = 1", default=False, type=bool)
     parser.add_argument("-o", "--output", help="path to output video file", default='recog_recording.avi', type=str)
     parser.add_argument("-f", "--fps", default=20, help="FPS of output video", type=int)
     args = parser.parse_args()

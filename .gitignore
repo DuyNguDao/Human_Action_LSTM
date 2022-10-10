@@ -2,4 +2,7 @@ yolov7_pose/weights/yolov7-w6-pose.pt
 runs/exp4
 runs/exp5
 recog_recording.avi
+strong_sort/weights/osnet_x0_5_msmt17.pth
+strong_sort/weights/osnet_x0_25_msmt17.pth
+strong_sort/weights/osnet_x1_0_market.pth
 __pycache__/

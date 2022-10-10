@@ -66,11 +66,13 @@ class Y7Detect:
         with torch.no_grad():
             image_rgb_shape = image_rgb.shape
             img = self.preprocess_image(image_rgb)
-            pred = self.model(img)[0]
-            torch.cuda.empty_cache()
+            pred1 = self.model(img)[0]
+
             # apply non_max_suppression
-            pred = non_max_suppression(pred, self.conf_threshold, self.iou_threshold, nc=self.model.yaml['nc'],
+            pred = non_max_suppression(pred1, self.conf_threshold, self.iou_threshold, nc=self.model.yaml['nc'],
                                        nkpt=self.model.yaml['nkpt'], kpt_label=True)
+            del pred1
+            torch.cuda.empty_cache()
             bboxes = []
             labels = []
             scores = []
