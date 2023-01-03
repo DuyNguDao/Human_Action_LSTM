@@ -65,7 +65,7 @@ class Tracker:
         for track in self.tracks:
             track.camera_update(previous_img, current_img)
 
-    def update(self, detections, confidences, kpts, kpts_line):
+    def update(self, detections, confidences, kpts):
         """Perform measurement update and track management.
 
         Parameters
@@ -81,12 +81,11 @@ class Tracker:
         # Update track set.
         for track_idx, detection_idx in matches:
             self.tracks[track_idx].update(
-                detections[detection_idx], confidences[detection_idx], kpts[detection_idx], kpts_line[detection_idx])
+                detections[detection_idx], confidences[detection_idx], kpts[detection_idx])
         for track_idx in unmatched_tracks:
             self.tracks[track_idx].mark_missed()
         for detection_idx in unmatched_detections:
-            self._initiate_track(detections[detection_idx], confidences[detection_idx].item(), kpts[detection_idx],
-                                 kpts_line[detection_idx])
+            self._initiate_track(detections[detection_idx], confidences[detection_idx].item(), kpts[detection_idx])
         self.tracks = [t for t in self.tracks if not t.is_deleted()]
 
         # Update distance metric.
@@ -171,8 +170,8 @@ class Tracker:
         unmatched_tracks = list(set(unmatched_tracks_a + unmatched_tracks_b))
         return matches, unmatched_tracks, unmatched_detections
 
-    def _initiate_track(self, detection, conf, kpt, kpt_line):
+    def _initiate_track(self, detection, conf, kpt):
         self.tracks.append(Track(
-            detection.to_xyah(), self._next_id, conf, kpt, kpt_line, self.n_init, self.max_age, self.ema_alpha,
+            detection.to_xyah(), self._next_id, conf, kpt, self.n_init, self.max_age, self.ema_alpha,
             detection.feature))
         self._next_id += 1

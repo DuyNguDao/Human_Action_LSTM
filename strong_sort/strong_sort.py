@@ -49,24 +49,23 @@ class StrongSORT(object):
         self.tracker = Tracker(
             metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init)
 
-    def update(self, bbox_xywh, confidences, kpts, kpts_line,ori_img):
+    def update(self, bbox_xywh, confidences, kpts, ori_img):
         bbox_xywh = self._xyxy_to_xywh(bbox_xywh)
         self.height, self.width = ori_img.shape[:2]
         # generate detections
         features = self._get_features(bbox_xywh, ori_img)
         bbox_tlwh = self._xywh_to_tlwh(bbox_xywh)
-        detections = [Detection(bbox_tlwh[i], conf, features[i], kpts[i], kpts_line[i]) for i, conf in enumerate(
+        detections = [Detection(bbox_tlwh[i], conf, features[i], kpts[i]) for i, conf in enumerate(
             confidences)]
 
         # run on non-maximum supression
         boxes = np.array([d.tlwh for d in detections])
         scores = np.array([d.confidence for d in detections])
         _kpts = np.array([d.kpt for d in detections])
-        _kpts_line = np.array([d.kpt_line for d in detections])
 
         # update tracker
         self.tracker.predict()
-        self.tracker.update(detections, confidences, kpts, kpts_line)
+        self.tracker.update(detections, confidences, kpts)
 
         # output bbox identities
         outputs = []
@@ -77,11 +76,10 @@ class StrongSORT(object):
             x1, y1, x2, y2 = self._tlwh_to_xyxy(box)
             track_id = track.track_id
             kpt = track.kpt
-            kpt_line = track.kpt_line
             list_action = track.list_action
             conf = track.conf
             pts = np.array(list_action, dtype=np.float32)
-            outputs.append({'bbox': [x1, y1, x2, y2], 'score': conf, 'kpt': kpt, 'line_kpt': kpt_line, 'id': track_id,
+            outputs.append({'bbox': [x1, y1, x2, y2], 'score': conf, 'kpt': kpt, 'id': track_id,
                             'list_kpt': pts})
         if len(outputs) > 0:
             outputs = np.stack(outputs, axis=0)
