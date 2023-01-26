@@ -32,7 +32,7 @@ pip install -r requirements.txt
 ```
 ### Download
 model yolov7 pose state dict:
-[yolov7_w6_pose](https://drive.google.com/file/d/1z8WVeqbjUKeibV0ZRDL5tBac9Ry8AkB3/view?usp=sharing)
+[yolov7_w6_pose](https://drive.google.com/file/d/1UiDdOghLoRUOLbgkh41538oEXSG4dDUh/view?usp=share_link)
 
 ### Quick start
 #### start with terminal
